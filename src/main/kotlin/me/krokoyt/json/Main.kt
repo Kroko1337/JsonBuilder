@@ -43,7 +43,8 @@ fun main(args: Array<String>) {
     val version: String = ArgumentParser.getArgument("version")[0]
     val main = ArgumentParser.getArgumentUnsafe("main")
     val mainClass = if (main != null) main[0] else "net.minecraft.client.main.Main"
-    val input = File("pom.xml")
+    val inputArg = ArgumentParser.getArgumentUnsafe("input")
+    val input = File((if (inputArg != null) inputArg[0] else "pom") + ".xml")
 
     val documentBuilder = DocumentBuilderFactory.newInstance()
     documentBuilder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
@@ -97,9 +98,22 @@ fun main(args: Array<String>) {
 
     val json = JsonObject()
     json.addProperty("id", name)
+    json.addProperty("assets", version)
     val calendar = Calendar.getInstance()
     json.addProperty(
         "time",
+        "${calendar.get(Calendar.YEAR)}-${format(calendar.get(Calendar.DAY_OF_MONTH))}-${(format(calendar.get(Calendar.MONTH) + 1))}T${
+            format(calendar.get(Calendar.HOUR_OF_DAY))
+        }:${format(calendar.get(Calendar.MINUTE))}:${format(calendar.get(Calendar.SECOND))}+${
+            format(
+                (calendar.get(
+                    Calendar.MILLISECOND
+                ))
+            )
+        }:00"
+    )
+    json.addProperty(
+        "releaseTime",
         "${calendar.get(Calendar.YEAR)}-${format(calendar.get(Calendar.DAY_OF_MONTH))}-${(format(calendar.get(Calendar.MONTH) + 1))}T${
             format(calendar.get(Calendar.HOUR_OF_DAY))
         }:${format(calendar.get(Calendar.MINUTE))}:${format(calendar.get(Calendar.SECOND))}+${
@@ -150,7 +164,6 @@ fun main(args: Array<String>) {
     json.add("libraries", libraries)
     json.addProperty("mainClass", mainClass)
     json.addProperty("minimumLauncherVersion", 14)
-    json.addProperty("assets", version)
 
     val writer = BufferedWriter(FileWriter(output))
     writer.write(gson.toJson(json))
