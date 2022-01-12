@@ -7,15 +7,12 @@ import com.google.gson.JsonObject
 import me.krokoyt.json.api.ArgumentParser
 import me.krokoyt.json.api.Dependency
 import me.tongfei.progressbar.ProgressBar
-import me.tongfei.progressbar.ProgressBarStyle
 import org.junit.Assert
 import org.w3c.dom.Element
 import org.w3c.dom.Node
-import java.io.BufferedWriter
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileWriter
-import java.lang.AssertionError
+import java.awt.Toolkit
+import java.awt.datatransfer.StringSelection
+import java.io.*
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.UnknownHostException
@@ -23,11 +20,8 @@ import java.nio.file.Files
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.*
-import javax.swing.plaf.ProgressBarUI
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
-import kotlin.collections.ArrayList
-import kotlin.experimental.and
 import kotlin.io.path.Path
 
 val gson: Gson = GsonBuilder().setPrettyPrinting().create()
@@ -46,6 +40,9 @@ fun main(args: Array<String>) {
     val inputArg = ArgumentParser.getArgumentUnsafe("input")
     val input = File((if (inputArg != null) inputArg[0] else "pom") + ".xml")
 
+    val fastMode = ArgumentParser.getArgumentUnsafe("fastmode") != null
+    val nativesFix = ArgumentParser.getArgumentUnsafe("nativesfix") != null
+
     val documentBuilder = DocumentBuilderFactory.newInstance()
     documentBuilder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
     val builder = documentBuilder.newDocumentBuilder()
@@ -63,16 +60,18 @@ fun main(args: Array<String>) {
             val groupId = element.getElementsByTagName("groupId")
             val artifactId = element.getElementsByTagName("artifactId")
             val versionElement = element.getElementsByTagName("version")
-            libs.add(
-                Dependency(
-                    groupId.item(0).textContent,
-                    artifactId.item(0).textContent,
-                    versionElement.item(0).textContent
+            if (!artifactId.item(0).textContent.contains("minecraft"))
+                libs.add(
+                    Dependency(
+                        groupId.item(0).textContent,
+                        artifactId.item(0).textContent,
+                        versionElement.item(0).textContent
+                    )
                 )
-            )
         }
     }
 
+    repositories.add("https://libraries.minecraft.net/")
     val repository = document.getElementsByTagName("repository")
     for (i in 0 until repository.length) {
         val node = repository.item(i)
@@ -82,8 +81,6 @@ fun main(args: Array<String>) {
             repositories.add(url.item(0).textContent)
         }
     }
-
-    repositories.add("https://libraries.minecraft.net/")
 
     println("Found repositories: $repositories")
 
@@ -131,11 +128,18 @@ fun main(args: Array<String>) {
     )
     val libraries = JsonArray()
 
-    val progressbar = ProgressBar("Test repositories",
+    val progressbar = ProgressBar(
+        "Test repositories",
         (libs.size - 1).toLong()
     )
+
+    var hasLWJGL = false
+    var lwjgl: Dependency
+
     for (lib in libs) {
-        val url = getURL(lib, progressbar)
+        val urlArray = getURL(lib, progressbar, fastMode)
+        val url = urlArray[0]
+        val rawUrl = urlArray[1]
         val libObj = JsonObject()
         if (!lib.noRepository) {
             val downloads = JsonObject()
@@ -154,10 +158,78 @@ fun main(args: Array<String>) {
             artifact.addProperty("size", getFileSize(path))
             artifact.addProperty("url", url)
             downloads.add("artifact", artifact)
+            /*if (lib.artifactId.contains("lwjgl-platform") && !nativesFix) {
+                val classifiers = JsonObject()
+                val nativesLinux = JsonObject()
+                val nativesOSX = JsonObject()
+                val nativesWindows = JsonObject()
+
+                val nativePath = "${lib.groupId.replace(".", "/")}/${lib.artifactId}/${lib.version}/${lib.artifactId}-${lib.version}"
+
+                val linuxURL = getURL("$nativePath-natives-linux.jar")[0]
+                val osxURL = getURL("$nativePath-natives-osx.jar")[0]
+                val windowsURL = getURL("$nativePath-natives-windows.jar")[0]
+
+                val linuxFile = downloadFile(linuxURL, "natives-linux.jar")
+                val osxFile = downloadFile(osxURL, "natives-osx.jar")
+                val windowsFile = downloadFile(windowsURL, "natives-windows.jar")
+
+                nativesLinux.addProperty("path", "$nativePath-natives-linux.jar")
+                nativesLinux.addProperty("sha1", getSha1Code(linuxFile))
+                nativesLinux.addProperty("size", getFileSize(linuxFile.absolutePath))
+                nativesLinux.addProperty("url", linuxURL)
+
+                nativesOSX.addProperty("path", "$nativePath-natives-osx.jar")
+                nativesOSX.addProperty(
+                    "sha1",
+                    getSha1Code(osxFile))
+                nativesOSX.addProperty("size", getFileSize(osxFile.absolutePath))
+                nativesOSX.addProperty("url", osxURL)
+
+                nativesWindows.addProperty("path", "$nativePath-natives-windows.jar")
+                nativesWindows.addProperty(
+                    "sha1",
+                    getSha1Code(windowsFile))
+                nativesWindows.addProperty("size", getFileSize(windowsFile.absolutePath))
+                nativesWindows.addProperty("url", windowsURL)
+
+                classifiers.add("natives-linux", nativesLinux)
+                classifiers.add("natives-osx", nativesOSX)
+                classifiers.add("natives-windows", nativesWindows)
+                downloads.add("classifiers", classifiers)
+            }*/
             libObj.add("downloads", downloads)
+            /*if(lib.artifactId.contains("lwjgl-platform") && !nativesFix) {
+                val extract = JsonObject()
+                val exclude = JsonArray()
+                exclude.add("META-INF/")
+                extract.add("exclude", exclude)
+
+                libObj.add("extract", extract)
+            }*/
         }
         libObj.addProperty("name", "${lib.groupId}:${lib.artifactId}:${lib.version}")
-        libraries.add(libObj)
+        /*if(lib.artifactId.contains("lwjgl-platform") && !nativesFix) {
+            val natives = JsonObject()
+            natives.addProperty("linux", "natives-linux")
+            natives.addProperty("osx", "natives-osx")
+            natives.addProperty("windows", "natives-windows")
+            libObj.add("natives", natives)
+
+            val rules = JsonArray()
+            val action = JsonObject()
+            action.addProperty("action", "allow")
+            rules.add(action)
+            val disallowAction = JsonObject()
+            disallowAction.addProperty("action", "disallow")
+            val os = JsonObject()
+            os.addProperty("name", "osx")
+            disallowAction.add("os", os)
+            rules.add(disallowAction)
+            libObj.add("rules", rules)
+        }*/
+        if (!lib.noRepository || fastMode)
+            libraries.add(libObj)
     }
     progressbar.pause()
 
@@ -169,16 +241,23 @@ fun main(args: Array<String>) {
     writer.write(gson.toJson(json))
     writer.close()
 
-    for(error in errors) {
+    for (error in errors) {
         System.err.println(error)
     }
 
     println("Finished writing json")
+
+    Toolkit.getDefaultToolkit().systemClipboard.setContents(
+        StringSelection("-Djava.library.path=versions/$name/natives/"),
+        null
+    )
+    println("Copied native path")
 }
 
-fun getURL(dependency: Dependency, progressbar: ProgressBar): String {
+fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean): Array<String> {
     var foundRepository = false
     var repository = ""
+    var rawRepository = ""
     val toTest = "${
         dependency.groupId.replace(
             ".",
@@ -188,27 +267,30 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar): String {
     try {
         progressbar.step()
         var index = 0
-        for (repo in repositories) {
-            if(!repo.startsWith("file://")) {
-                var repo = repo
-                if (!repo.endsWith("/"))
-                    repo += "/"
-                val url = URL(
-                    "$repo$toTest"
-                )
-                val urlConnection = url.openConnection() as HttpURLConnection
-                urlConnection.connect()
+        if (!fastMode)
+            for (repo in repositories) {
+                if (!repo.startsWith("file://")) {
+                    var repo = repo
+                    if (!repo.endsWith("/"))
+                        repo += "/"
+                    val url = URL(
+                        "$repo$toTest"
+                    )
+                    val urlConnection = url.openConnection() as HttpURLConnection
+                    urlConnection.connect()
 
-                index++
-                val response = urlConnection.responseCode
-                try {
-                    Assert.assertEquals(HttpURLConnection.HTTP_OK, response)
-                    foundRepository = true
-                    repository = "$repo$toTest"
-                } catch (_: AssertionError) { }
-                urlConnection.disconnect()
+                    index++
+                    val response = urlConnection.responseCode
+                    try {
+                        Assert.assertEquals(HttpURLConnection.HTTP_OK, response)
+                        foundRepository = true
+                        repository = "$repo$toTest"
+                        rawRepository = repo
+                    } catch (_: AssertionError) {
+                    }
+                    urlConnection.disconnect()
+                }
             }
-        }
     } catch (exception: UnknownHostException) {
         errors.add("host not found for ${dependency.artifactId} ${dependency.version} -> $repository")
     }
@@ -216,7 +298,39 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar): String {
         errors.add("\n${dependency.groupId}:${dependency.artifactId}:${dependency.version} has no working repository (maybe local repository?)")
         dependency.noRepository = true
     }
-    return repository
+    return arrayOf(repository, rawRepository)
+}
+
+fun getURL(nativeUrl: String): Array<String> {
+    var repository = ""
+    var rawRepository = ""
+    try {
+        var index = 0
+        for (repo in repositories) {
+            if (!repo.startsWith("file://")) {
+                var repo = repo
+                if (!repo.endsWith("/"))
+                    repo += "/"
+                val url = URL(
+                    "$repo$nativeUrl"
+                )
+                val urlConnection = url.openConnection() as HttpURLConnection
+                urlConnection.connect()
+                println(url)
+                index++
+                val response = urlConnection.responseCode
+                try {
+                    Assert.assertEquals(HttpURLConnection.HTTP_OK, response)
+                    repository = "$repo$nativeUrl"
+                    rawRepository = repo
+                } catch (_: AssertionError) {
+                }
+                urlConnection.disconnect()
+            }
+        }
+    } catch (_: UnknownHostException) {
+    }
+    return arrayOf(repository, rawRepository)
 }
 
 fun getSha1Code(path: String): String {
@@ -230,8 +344,32 @@ fun getSha1Code(path: String): String {
     return bytesToHexString(result)
 }
 
-fun getFileSize(path: String): String {
-    return Files.size(Path(path)).toString()
+fun getSha1Code(file: File): String {
+    val input = FileInputStream(file)
+    val digest = MessageDigest.getInstance("SHA-1")
+    val digestInputStream = DigestInputStream(input, digest)
+    val bytes = ByteArray(1024)
+    while (digestInputStream.read(bytes) > 0) {
+    }
+    val result = digest.digest()
+    return bytesToHexString(result)
+}
+
+fun getFileSize(path: String): Int {
+    return Files.size(Path(path)).toInt()
+}
+
+fun downloadFile(url: String, name: String): File {
+    println(url)
+    val inputStream = BufferedInputStream(URL(url).openStream())
+    val fileOutputStream = FileOutputStream(name)
+    val dataBuffer = ByteArray(1024)
+    var bytesRead: Int
+    while (inputStream.read(dataBuffer, 0, 1024).also { bytesRead = it } != -1) {
+        fileOutputStream.write(dataBuffer, 0, bytesRead)
+    }
+    fileOutputStream.close()
+    return File(name)
 }
 
 private fun bytesToHexString(bytes: ByteArray): String {
