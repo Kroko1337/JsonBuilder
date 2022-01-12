@@ -43,7 +43,7 @@ fun main(args: Array<String>) {
     val version: String = ArgumentParser.getArgument("version")[0]
     val main = ArgumentParser.getArgumentUnsafe("main")
     val mainClass = if (main != null) main[0] else "net.minecraft.client.main.Main"
-    val input = File("test.xml")
+    val input = File("pom.xml")
 
     val documentBuilder = DocumentBuilderFactory.newInstance()
     documentBuilder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
@@ -197,9 +197,7 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar): String {
             }
         }
     } catch (exception: UnknownHostException) {
-        println("Internet timed out")
-        dependency.noRepository = true
-        return repository
+        errors.add("host not found for ${dependency.artifactId} ${dependency.version} -> $repository")
     }
     if (!foundRepository) {
         errors.add("\n${dependency.groupId}:${dependency.artifactId}:${dependency.version} has no working repository (maybe local repository?)")
