@@ -41,7 +41,6 @@ fun main(args: Array<String>) {
     val input = File((if (inputArg != null) inputArg[0] else "pom.xml"))
 
     val fastMode = ArgumentParser.getArgumentUnsafe("fastmode") != null
-    val nativesFix = ArgumentParser.getArgumentUnsafe("nativesfix") != null
 
     val documentBuilder = DocumentBuilderFactory.newInstance()
     documentBuilder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
