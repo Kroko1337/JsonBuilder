@@ -38,7 +38,7 @@ fun main(args: Array<String>) {
     val main = ArgumentParser.getArgumentUnsafe("main")
     val mainClass = if (main != null) main[0] else "net.minecraft.client.main.Main"
     val inputArg = ArgumentParser.getArgumentUnsafe("input")
-    val input = File((if (inputArg != null) inputArg[0] else "pom") + ".xml")
+    val input = File((if (inputArg != null) inputArg[0] else "pom"))
 
     val fastMode = ArgumentParser.getArgumentUnsafe("fastmode") != null
     val nativesFix = ArgumentParser.getArgumentUnsafe("nativesfix") != null
