@@ -296,6 +296,9 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean):
     if (!foundRepository) {
         errors.add("\n${dependency.groupId}:${dependency.artifactId}:${dependency.version} has no working repository (maybe local repository?)")
         dependency.noRepository = true
+    } else {
+        if(rawRepository == repositories[0])
+            dependency.noRepository = true
     }
     return arrayOf(repository, rawRepository)
 }
