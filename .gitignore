@@ -1,4 +1,6 @@
 /target/
 /.idea/
 *.json
-/test.xml
+/libs
+*.xml
+*.zip

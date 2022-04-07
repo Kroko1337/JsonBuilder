@@ -41,6 +41,7 @@ fun main(args: Array<String>) {
     val input = File((if (inputArg != null) inputArg[0] else "pom.xml"))
 
     val fastMode = ArgumentParser.getArgumentUnsafe("fastmode") != null
+    val download = ArgumentParser.getArgumentUnsafe("download") != null
 
     val documentBuilder = DocumentBuilderFactory.newInstance()
     documentBuilder.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
@@ -140,7 +141,15 @@ fun main(args: Array<String>) {
         val url = urlArray[0]
         val rawUrl = urlArray[1]
         val libObj = JsonObject()
+
+
+        val libFolder = File("libs")
+        if (!libFolder.exists())
+            libFolder.mkdir()
+
         if (!lib.noRepository) {
+            if (download && !File(libFolder, "${lib.artifactId}.jar").exists())
+                downloadFile(url, "libs/${lib.artifactId}.jar")
             val downloads = JsonObject()
             val artifact = JsonObject()
             val path = "${System.getProperty("user.home")}/.m2/repository/${
@@ -297,7 +306,7 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean):
         errors.add("\n${dependency.groupId}:${dependency.artifactId}:${dependency.version} has no working repository (maybe local repository?)")
         dependency.noRepository = true
     } else {
-        if(rawRepository == repositories[0])
+        if (rawRepository == repositories[0])
             dependency.noRepository = true
     }
     return arrayOf(repository, rawRepository)
@@ -362,7 +371,6 @@ fun getFileSize(path: String): Int {
 }
 
 fun downloadFile(url: String, name: String): File {
-    println(url)
     val inputStream = BufferedInputStream(URL(url).openStream())
     val fileOutputStream = FileOutputStream(name)
     val dataBuffer = ByteArray(1024)
