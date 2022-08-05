@@ -19,6 +19,7 @@ import java.net.UnknownHostException
 import java.nio.file.Files
 import java.security.DigestInputStream
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
 import java.util.*
 import javax.xml.XMLConstants
 import javax.xml.parsers.DocumentBuilderFactory
@@ -97,29 +98,18 @@ fun main(args: Array<String>) {
     json.addProperty("id", name)
     json.addProperty("assets", version)
     val calendar = Calendar.getInstance()
+    val dateFormat = SimpleDateFormat("yyyy-dd-MM HH:mm:ss+SSS")
+    val date = Date()
+    val formattedTime = "${dateFormat.format(date).replace(" " , "T")}:00"
+
     json.addProperty(
         "time",
-        "${calendar.get(Calendar.YEAR)}-${format(calendar.get(Calendar.DAY_OF_MONTH))}-${(format(calendar.get(Calendar.MONTH) + 1))}T${
-            format(calendar.get(Calendar.HOUR_OF_DAY))
-        }:${format(calendar.get(Calendar.MINUTE))}:${format(calendar.get(Calendar.SECOND))}+${
-            format(
-                (calendar.get(
-                    Calendar.MILLISECOND
-                ))
-            )
-        }:00"
+        formattedTime
     )
+
     json.addProperty(
         "releaseTime",
-        "${calendar.get(Calendar.YEAR)}-${format(calendar.get(Calendar.DAY_OF_MONTH))}-${(format(calendar.get(Calendar.MONTH) + 1))}T${
-            format(calendar.get(Calendar.HOUR_OF_DAY))
-        }:${format(calendar.get(Calendar.MINUTE))}:${format(calendar.get(Calendar.SECOND))}+${
-            format(
-                (calendar.get(
-                    Calendar.MILLISECOND
-                ))
-            )
-        }:00"
+        formattedTime
     )
     json.addProperty("type", "release")
     json.addProperty(
