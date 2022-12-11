@@ -253,10 +253,6 @@ fun main(args: Array<String>) {
         null
     )
     println("Copied native path")
-
-    libs.forEach {
-        println(it.artifactId + " " + it.noRepository)
-    }
 }
 
 fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean, download: Boolean): Array<String> {
