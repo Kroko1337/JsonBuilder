@@ -79,7 +79,10 @@ fun main(args: Array<String>) {
         if (node.nodeType == Node.ELEMENT_NODE) {
             val element = node as Element
             val url = element.getElementsByTagName("url")
-            repositories.add(url.item(0).textContent)
+            var name = url.item(0).textContent
+            if(!name.endsWith("/"))
+                name += "/"
+            repositories.add(name)
         }
     }
 
@@ -127,7 +130,7 @@ fun main(args: Array<String>) {
     var lwjgl: Dependency
 
     for (lib in libs) {
-        val urlArray = getURL(lib, progressbar, fastMode)
+        val urlArray = getURL(lib, progressbar, fastMode, download)
         val url = urlArray[0]
         val rawUrl = urlArray[1]
         val libObj = JsonObject()
@@ -250,9 +253,13 @@ fun main(args: Array<String>) {
         null
     )
     println("Copied native path")
+
+    libs.forEach {
+        println(it.artifactId + " " + it.noRepository)
+    }
 }
 
-fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean): Array<String> {
+fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean, download: Boolean): Array<String> {
     var foundRepository = false
     var repository = ""
     var rawRepository = ""
@@ -296,7 +303,7 @@ fun getURL(dependency: Dependency, progressbar: ProgressBar, fastMode: Boolean):
         errors.add("\n${dependency.groupId}:${dependency.artifactId}:${dependency.version} has no working repository (maybe local repository?)")
         dependency.noRepository = true
     } else {
-        if (rawRepository == repositories[0])
+        if (rawRepository == repositories[0] && !download)
             dependency.noRepository = true
     }
     return arrayOf(repository, rawRepository)
